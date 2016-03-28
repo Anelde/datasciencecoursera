@@ -6,15 +6,13 @@ library(reshape2)
 library(knitr)
 
 # data
-url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
-f <- "Dataset.zip"
-
 path <- getwd()
-download.file(url, file.path(path, f))
-
-#unzip file
-unzip(f)
+filename <- "Dataset.zip"
 pathData <- file.path(path, "UCI HAR Dataset")
+
+if (!file.exists(pathData)) {
+      unzip(filename)
+}
 
 # read data
 dataTrainSubject <- fread(file.path(pathData, "train", "subject_train.txt"))
@@ -115,5 +113,5 @@ dataset$featAxis <- factor(x %*% y, labels=c(NA, "X", "Y", "Z"))
 setkey(dataset, subject, activityName, featDomain, featAcceleration, featInstrument, featJerk, featMagnitude, featVariable, featAxis)
 dataTidy <- dataset[, list(count = .N, average = mean(value)), by=key(dataset)]
 
-# Make a codebook
+# 6. Make a codebook
 knit("run_analyses.R", output="codebook.md", encoding="ISO8859-1", quiet=TRUE)
