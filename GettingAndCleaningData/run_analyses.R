@@ -23,30 +23,23 @@ dataTestSubject  <- fread(file.path(pathData, "test" , "subject_test.txt" ))
 dataTestY  <- fread(file.path(pathData, "test" , "Y_test.txt" ))
 dataTestX  <- fread(file.path(pathData, "test" , "X_test.txt" ))
 
-# 1. "Merges the training and the test sets to create one data set."
-
-# Both datasets for Train and Test have the same numeber of columns, 
-#so we need to add up all the rows (rbind)
+# 1. "Merges the training and the test sets to create one data set." Both datasets for Train and Test have the same numeber of columns, so we need to add up all the rows (rbind)
 dataSubject <- rbind(dataTrainSubject, dataTestSubject)
 setnames(dataSubject, "V1", "subject")
 dataActivity <- rbind(dataTrainY, dataTestY)
 setnames(dataActivity, "V1", "activityNum")
 dataX <- rbind(dataTrainX, dataTestX)
 
-# now we need to combine the datasets between the subject and activity sets
+# now we need to combine the datasets between the subject and activity sets and finally merge the subject/activity data with the measurements
 dataSubject <- cbind(dataSubject, dataActivity)
-# and finally merge the subject/activity data with the measurements
 dataset <- cbind(dataSubject, dataX)
 
-# 2. "Extracts only the measurements on the mean and standard deviation for each measurement."
-
-# in the feature.txt file it is written which variables are representing the mean 
-# and standard deviation
+# 2. "Extracts only the measurements on the mean and standard deviation for each measurement." 
+# in the feature.txt file it is written which variables are representing the mean and standard deviation
 dataFeatures <- fread(file.path(pathData, "features.txt"))
 setnames(dataFeatures, names(dataFeatures), c("featureNum", "featureName"))
 
-# look for any 'mean' and ' std' in the names, use regular expressions to find the 
-# string expression for mean and std in the name
+# look for any 'mean' and ' std' in the names, use regular expressions to find the string expression for mean and std in the name
 dataFeatures <- dataFeatures[grepl("mean\\(\\)|std\\(\\)", featureName)]
 # link the feature numbers in column 1 to the column names in the dataset (featureCodes)
 dataFeatures$featureCode <- dataFeatures[, paste0("V", featureNum)]
@@ -56,17 +49,15 @@ select <- c("subject", "activityNum", dataFeatures$featureCode)
 dataset <- dataset[, select, with=FALSE]
 
 #3. Uses descriptive activity names to name the activities in the data set
-
-# In the activity_labels.txt file is written where each activity number stands for
-# read activity_labels.txt
+# In the activity_labels.txt file is written where each activity number stands for read activity_labels.txt
 dataActivityNames <- fread(file.path(pathData, "activity_labels.txt"))
 setnames(dataActivityNames, names(dataActivityNames), c("activityNum", "activityName"))
 # add ezxtra column with activity name by merging this datset set with the main dataset
 dataset <- merge(dataset, dataActivityNames, by="activityNum", all.x=TRUE)
 
-# set the key for this data to the combination of subject and activity
+# Set the key for this data to the combination of subject and activity
 setkey(dataset, subject, activityNum, activityName)
-# reshape the dataset to put everything below eachother
+# Reshape the dataset to put everything below eachother
 dataset <- data.table(melt(dataset, key(dataset), variable.name="featureCode"))
 dataset <- merge(dataset, dataFeatures[, list(featureNum, featureCode, featureName)], by="featureCode", all.x=TRUE)
 
@@ -76,15 +67,14 @@ dataset <- merge(dataset, dataFeatures[, list(featureNum, featureCode, featureNa
 dataset$activityName <- factor(dataset$activityName)
 dataset$featureName <- factor(dataset$featureName)
 
-# refactor code so that the features are clearly visible
+# Refactor code so that the features are clearly visible
 grepthis <- function (regex) {
       grepl(regex, dataset$featureName)
 }
-## Features with 2 categories
+# Features with 2 categories
 n <- 2
 y <- matrix(seq(1, n), nrow=n)
-# if featureName variable contains an 't' at the beginning then it means it represents
-# a count, if there is a 'f' then it mean frequency
+# if featureName variable contains an 't' at the beginning then it means it represents a count, if there is a 'f' then it mean frequency
 x <- matrix(c(grepthis("^t"), grepthis("^f")), ncol=nrow(y))
 dataset$featDomain <- factor(x %*% y, labels=c("Time", "Freq"))
 # if featureNAme variable contains 'Acc' anywhere in the variable name it means 'Accelerometer'
@@ -95,21 +85,19 @@ dataset$featInstrument <- factor(x %*% y, labels=c("Accelerometer", "Gyroscope")
 # Otherwise there is 'GravityAcc' in the name and that means 'Gravity'
 x <- matrix(c(grepthis("BodyAcc"), grepthis("GravityAcc")), ncol=nrow(y))
 dataset$featAcceleration <- factor(x %*% y, labels=c(NA, "Body", "Gravity"))
-# if featureNAme variable contains mean ot std it means respectively the mean or 
-# standard deviation (SD)
+# if featureNAme variable contains mean ot std it means respectively the mean or standard deviation (SD)
 x <- matrix(c(grepthis("mean()"), grepthis("std()")), ncol=nrow(y))
 dataset$featVariable <- factor(x %*% y, labels=c("Mean", "SD"))
-## Features with 1 category
+# Features with 1 category
 dataset$featJerk <- factor(grepthis("Jerk"), labels=c(NA, "Jerk"))
 dataset$featMagnitude <- factor(grepthis("Mag"), labels=c(NA, "Magnitude"))
-## Features with 3 categories
+# Features with 3 categories
 n <- 3
 y <- matrix(seq(1, n), nrow=n)
 x <- matrix(c(grepthis("-X"), grepthis("-Y"), grepthis("-Z")), ncol=nrow(y))
 dataset$featAxis <- factor(x %*% y, labels=c(NA, "X", "Y", "Z"))
 
-# 5. Create a tidy set that shows the mean for every variable per 
-# each subject/ activity/ feature combination
+# 5. Create a tidy set that shows the mean for every variable per each subject/ activity/ feature combination
 setkey(dataset, subject, activityName, featDomain, featAcceleration, featInstrument, featJerk, featMagnitude, featVariable, featAxis)
 dataTidy <- dataset[, list(count = .N, average = mean(value)), by=key(dataset)]
 
